@@ -14,3 +14,8 @@ bun run dev      # 开发服务器
 bun test         # 单元测试
 bun run build    # 类型检查 + 生产构建
 ```
+<img width="2714" height="1710" alt="download" src="https://github.com/user-attachments/assets/8d3c5ee5-5bf6-4ddf-89cb-67405fb03ec6" />
+<img width="2714" height="1710" alt="download" src="https://github.com/user-attachments/assets/1f018327-a85a-4526-88bf-3ef3787ab0f9" />
+<img width="2714" height="1710" alt="download" src="https://github.com/user-attachments/assets/b106d51e-70e7-421d-b5ad-fae07411de62" />
+<img width="2714" height="1710" alt="download" src="https://github.com/user-attachments/assets/1827c36c-04b3-4b56-a132-206fef3d6128" />
+<img width="2714" height="1710" alt="download" src="https://github.com/user-attachments/assets/d491c082-3899-41f2-8027-901bd0fe83e8" />
