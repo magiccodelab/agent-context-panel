@@ -100,6 +100,11 @@ export const en = {
   messages: {
     title: "Raw messages",
     export: "Export session",
+    exportFormat: "Export format",
+    exportJson: "Full JSON",
+    exportJsonHint: "Raw messages, tools, tokens",
+    exportMarkdown: "Markdown",
+    exportMarkdownHint: "Conversation text only",
     search: "Search messages",
     searchPlaceholder: "Search message ID or prompt",
     clearSearch: "Clear search",
@@ -228,6 +233,11 @@ export const zh: Messages = {
   messages: {
     title: "原始消息",
     export: "导出会话",
+    exportFormat: "导出格式",
+    exportJson: "完整 JSON",
+    exportJsonHint: "原始消息、工具与词元",
+    exportMarkdown: "Markdown",
+    exportMarkdownHint: "仅对话文本",
     search: "搜索消息",
     searchPlaceholder: "搜索消息 ID 或提问内容",
     clearSearch: "清空搜索",

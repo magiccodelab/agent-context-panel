@@ -73,6 +73,40 @@ const USER_PROMPTS: Localized[] = [
   { en: "Update the issue body with the screenshot links", zh: "更新 Issue 正文，附上截图链接" },
 ];
 const TOOL_POOL: ToolKind[] = ["shell", "shell", "shell", "read", "read", "grep", "edit", "write", "search"];
+
+/** 助手消息正文：Markdown 导出只保留对话，所以每条都有一句与所执行动作对应的摘要 */
+const TOOL_SUMMARY: Record<ToolKind, Localized> = {
+  shell: { en: "Ran the command and checked the output.", zh: "执行了命令并检查了输出。" },
+  read: { en: "Read the related source files.", zh: "读取了相关源码文件。" },
+  edit: { en: "Edited the code path that caused the issue.", zh: "修改了导致问题的代码路径。" },
+  write: { en: "Wrote the new file for this change.", zh: "为这次改动写入了新文件。" },
+  search: { en: "Looked up how upstream handles this case.", zh: "查了上游对这种情况的处理方式。" },
+  grep: { en: "Searched the codebase for the matching symbols.", zh: "在代码库中检索了匹配的符号。" },
+};
+
+/** 每轮收尾的结论文案，让 Markdown 读起来像一份交接稿而不是日志 */
+const TURN_CLOSING: Localized[] = [
+  {
+    en: "Found the cause: the tab strip keeps a fixed minimum width, so it overflows instead of scrolling. I'll make the strip scroll and keep the active tab visible.",
+    zh: "定位到原因：标签栏保留了固定的最小宽度，窗口变窄时只会溢出而不会滚动。接下来会让标签栏可滚动，并保证当前标签始终可见。",
+  },
+  {
+    en: "Applied the fix and added a minimal reproduction. The repro fails on the old behavior and passes with the change.",
+    zh: "已应用修复并补上最小复现；复现在旧行为下失败，在改动后通过。",
+  },
+  {
+    en: "Turned the reproduction into an issue draft with expected and actual behavior, plus the affected version.",
+    zh: "把复现整理成了 Issue 草稿，包含预期行为、实际行为以及受影响的版本。",
+  },
+  {
+    en: "Added an upload script for the screenshots and documented the public asset repository it targets.",
+    zh: "补上了截图上传脚本，并写明了它使用的公开资源仓库。",
+  },
+  {
+    en: "Updated the issue body with the screenshot links and a short summary of the root cause.",
+    zh: "更新了 Issue 正文，附上截图链接和根因的简要说明。",
+  },
+];
 const ID_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
 export const usageTotal = (u: TokenUsage) => u.input + u.output + u.reasoning + u.cacheRead + u.cacheWrite;
@@ -154,12 +188,20 @@ export function generateMessages(seed = 20261103): Message[] {
     const delta = assistantIndex === 0 ? total - START_CONTEXT : total - previousTotal;
     previousTotal = total;
     assistantIndex++;
+    // 中间步骤写一句与工具对应的动作摘要，收尾写本轮结论；这样原文与 Markdown 导出都不是纯工具记录
+    const text: Localized = isTurnEnd
+      ? TURN_CLOSING[(m.turn - 1) % TURN_CLOSING.length]!
+      : {
+          en: tools.map((tool) => TOOL_SUMMARY[tool].en).join(" "),
+          zh: tools.map((tool) => TOOL_SUMMARY[tool].zh).join(""),
+        };
 
     return {
       id: nextId(),
       role: "assistant",
       createdAt,
       turn: m.turn,
+      text,
       tokens,
       contextTotal: usageTotal(tokens),
       contextDelta: delta,

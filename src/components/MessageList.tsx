@@ -5,6 +5,7 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   Download,
+  FileJson,
   FilePen,
   FilePlus2,
   FileSearch,
@@ -18,8 +19,8 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { toRawMessage, toSessionExport } from "../data/export";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { toRawMessage, sessionExportPayload, downloadText, type ExportFormat } from "../data/export";
 import type { Message, Session, ToolKind, Turn } from "../data/mock";
 import { useI18n } from "../i18n/I18nProvider";
 import { cx, IconButton, Segmented, SectionTitle, useClipboard } from "./ui";
@@ -97,14 +98,9 @@ export function MessageList({ session, turns, selectedId, onSelect }: MessageLis
       return next;
     });
 
-  const exportSession = () => {
-    const payload = toSessionExport(session, allMessages, locale);
-    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${session.id}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const exportSession = (format: ExportFormat) => {
+    const payload = sessionExportPayload(session, allMessages, locale, format);
+    downloadText(payload.filename, payload.content, payload.mime);
   };
 
   return (
@@ -112,14 +108,7 @@ export function MessageList({ session, turns, selectedId, onSelect }: MessageLis
       <SectionTitle
         icon={ListTree}
         aside={
-          <button
-            type="button"
-            onClick={exportSession}
-            className="inline-flex h-8 items-center gap-2 rounded-sm px-2 text-caption text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg active:scale-[0.98]"
-          >
-            <Download className="size-4" strokeWidth={1.75} aria-hidden />
-            {t.messages.export}
-          </button>
+          <ExportMenu onExport={exportSession} />
         }
       >
         <span id="raw-title">{t.messages.title}</span>
@@ -210,6 +199,89 @@ export function MessageList({ session, turns, selectedId, onSelect }: MessageLis
         </ul>
       )}
     </section>
+  );
+}
+
+function ExportMenu({ onExport }: { onExport: (format: ExportFormat) => void }) {
+  const { t } = useI18n();
+  const [isOpen, setIsOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuID = useId();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setIsOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isOpen]);
+
+  const pick = (format: ExportFormat) => {
+    onExport(format);
+    setIsOpen(false);
+  };
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? menuID : undefined}
+        onClick={() => setIsOpen((v) => !v)}
+        className={cx(
+          "inline-flex h-8 items-center gap-2 rounded-sm px-2 text-caption text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg active:scale-[0.98]",
+          isOpen && "bg-surface-2 text-fg",
+        )}
+      >
+        <Download className="size-4" strokeWidth={1.75} aria-hidden />
+        {t.messages.export}
+        <ChevronDown className={cx("size-3.5 shrink-0 text-fg-3 transition-transform", isOpen && "rotate-180")} strokeWidth={1.75} aria-hidden />
+      </button>
+      {isOpen && (
+        <div
+          id={menuID}
+          role="menu"
+          aria-label={t.messages.exportFormat}
+          className="absolute right-0 z-30 mt-2 w-64 rounded-md border border-line bg-surface p-1 shadow-md"
+        >
+          <div className="px-2 py-1 text-caption text-fg-2">{t.messages.exportFormat}</div>
+          {(
+            [
+              { format: "json" as const, label: t.messages.exportJson, hint: t.messages.exportJsonHint, icon: FileJson },
+              { format: "markdown" as const, label: t.messages.exportMarkdown, hint: t.messages.exportMarkdownHint, icon: FileText },
+            ] satisfies { format: ExportFormat; label: string; hint: string; icon: LucideIcon }[]
+          ).map(({ format, label, hint, icon: Icon }) => (
+            <button
+              key={format}
+              type="button"
+              role="menuitem"
+              onClick={() => pick(format)}
+              className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left transition-colors hover:bg-surface-2 focus-visible:bg-surface-2"
+            >
+              <Icon className="mt-0.5 size-4 shrink-0 text-fg-3" strokeWidth={1.75} aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className="block text-body-sm text-fg">{label}</span>
+                <span className="block text-caption text-fg-2">{hint}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
