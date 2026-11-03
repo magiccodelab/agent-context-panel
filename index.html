@@ -1,15 +1,19 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark light" />
-    <title>上下文 · 示例会话</title>
+    <title>Context · Sample session</title>
     <script>
-      // 首屏绘制前写入主题，避免亮暗闪烁
+      // 首屏绘制前写入主题与语言，避免亮暗闪烁和语言跳变；默认英文
       try {
-        var t = localStorage.getItem("theme");
-        document.documentElement.dataset.theme = t === "light" ? "light" : "dark";
+        var root = document.documentElement;
+        root.dataset.theme = localStorage.getItem("theme") === "light" ? "light" : "dark";
+        if (localStorage.getItem("locale") === "zh") {
+          root.lang = "zh-CN";
+          document.title = "上下文 · 示例会话";
+        }
       } catch (e) {}
     </script>
   </head>

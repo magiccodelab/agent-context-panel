@@ -1,4 +1,4 @@
-import { Check, Copy, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 export function cx(...classes: (string | false | null | undefined)[]) {
@@ -45,30 +45,13 @@ export function useClipboard(resetMs = 1500) {
         window.clearTimeout(timer.current);
         timer.current = window.setTimeout(() => setCopiedKey(null), resetMs);
       } catch (error) {
-        console.error("复制失败", error);
+        console.error("Clipboard write failed", error);
       }
     },
     [resetMs],
   );
 
   return { copiedKey, copy };
-}
-
-export function CopyButton({ text, label = "复制", className }: { text: string; label?: string; className?: string }) {
-  const { copiedKey, copy } = useClipboard();
-  const isCopied = copiedKey === text;
-  return (
-    <IconButton
-      icon={isCopied ? Check : Copy}
-      label={isCopied ? "已复制" : label}
-      size="sm"
-      className={cx(isCopied && "text-success hover:text-success", className)}
-      onClick={(e) => {
-        e.stopPropagation();
-        void copy(text);
-      }}
-    />
-  );
 }
 
 interface SegmentedOption<T extends string> {

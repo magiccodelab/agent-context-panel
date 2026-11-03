@@ -4,6 +4,8 @@ AI 编程助手会话的上下文面板 MVP：上下文窗口用量、请求词�
 
 技术栈：Bun · Vite · React · Tailwind CSS v4 · Lucide
 
+界面默认英文，可在顶栏切换为简体中文，选择会保存在本地。文案集中在 `src/i18n/messages.ts`，中英字典结构由类型约束保持一致。
+
 ```bash
 bun install
 bun run dev      # 开发服务器

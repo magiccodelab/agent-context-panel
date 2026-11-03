@@ -1,7 +1,8 @@
 import { TrendingUp } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
-import { TOOL_LABEL, type Message, type Turn } from "../data/mock";
-import { formatClock, formatClockSeconds, formatCompact, formatInt, formatSigned, niceCeil } from "../lib/format";
+import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import type { Message, Turn } from "../data/mock";
+import { useI18n } from "../i18n/I18nProvider";
+import { niceCeil } from "../lib/format";
 import { cx, Segmented, SectionTitle } from "./ui";
 
 type Mode = "context" | "output";
@@ -12,9 +13,11 @@ const PAD = { left: 44, right: 8, top: 28, bottom: 24 };
 function useElementWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState(0);
-  useEffect(() => {
+  // 先同步测量一次，首帧即可绘制图表；ResizeObserver 的回调依赖渲染帧，后台标签页中会延迟触发
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    setWidth(Math.floor(el.getBoundingClientRect().width));
     const observer = new ResizeObserver(([entry]) => setWidth(Math.floor(entry?.contentRect.width ?? 0)));
     observer.observe(el);
     return () => observer.disconnect();
@@ -32,6 +35,7 @@ interface GrowthChartProps {
 }
 
 export function GrowthChart({ points, turns, contextLimit, selectedId, onSelect }: GrowthChartProps) {
+  const { t, f } = useI18n();
   const [mode, setMode] = useState<Mode>("context");
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [containerRef, width] = useElementWidth<HTMLDivElement>();
@@ -51,7 +55,7 @@ export function GrowthChart({ points, turns, contextLimit, selectedId, onSelect 
   const turnStarts = useMemo(() => {
     return turns
       .map((turn) => ({ turn: turn.index, index: points.findIndex((p) => p.turn === turn.index), at: turn.startedAt }))
-      .filter((t) => t.index >= 0);
+      .filter((start) => start.index >= 0);
   }, [turns, points]);
 
   const selectedIndex = selectedId ? points.findIndex((p) => p.id === selectedId) : -1;
@@ -87,48 +91,50 @@ export function GrowthChart({ points, turns, contextLimit, selectedId, onSelect 
   // 提示框始终贴在指针另一侧，避免遮住当前数据点
   const isTooltipOnLeft = activeX > width / 2;
 
+  const title = mode === "context" ? t.chart.titleContext : t.chart.titleOutput;
+
   return (
     <section aria-labelledby="growth-title" className="rounded-lg border border-line bg-surface p-4 shadow-sm sm:p-6">
       <SectionTitle
         icon={TrendingUp}
         aside={
           <Segmented
-            label="图表指标"
+            label={t.chart.metric}
             value={mode}
             onChange={setMode}
             options={[
-              { value: "context", label: "上下文" },
-              { value: "output", label: "单条输出" },
+              { value: "context", label: t.chart.modeContext },
+              { value: "output", label: t.chart.modeOutput },
             ]}
           />
         }
       >
-        <span id="growth-title">{mode === "context" ? "上下文增长" : "每条消息输出"}</span>
+        <span id="growth-title">{title}</span>
       </SectionTitle>
 
       <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-fg-2">
         {mode === "context" ? (
-          <span>每条助手消息的请求上下文 · 上限 {formatCompact(contextLimit)}</span>
+          <span>{t.chart.subtitleContext(f.compact(contextLimit))}</span>
         ) : (
           <>
             <span className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-fg-2" aria-hidden />
-              输出
+              {t.chart.output}
             </span>
             <span className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-fg-3" aria-hidden />
-              推理
+              {t.chart.reasoning}
             </span>
           </>
         )}
-        <span className="ml-auto hidden sm:inline">点击图表定位到对应消息</span>
+        <span className="ml-auto hidden sm:inline">{t.chart.clickHint}</span>
       </div>
 
       <div
         ref={containerRef}
         tabIndex={0}
         role="group"
-        aria-label={`${mode === "context" ? "上下文增长" : "每条消息输出"}图表，左右方向键浏览，回车定位消息`}
+        aria-label={t.chart.groupLabel(title)}
         onKeyDown={onKeyDown}
         onBlur={() => setActiveIndex(null)}
         className="relative mt-3 rounded-md"
@@ -137,38 +143,45 @@ export function GrowthChart({ points, turns, contextLimit, selectedId, onSelect 
         {width > 0 && n > 0 && (
           <svg width={width} height={HEIGHT} className="block select-none" aria-hidden>
             {/* 横向网格与刻度 */}
-            {[0, 0.5, 1].map((f) => (
-              <g key={f}>
-                <line x1={PAD.left} x2={width - PAD.right} y1={y(f * yMax)} y2={y(f * yMax)} className="stroke-line" strokeDasharray={f === 0 ? undefined : "2 4"} />
-                <text x={PAD.left - 8} y={y(f * yMax)} dy="0.32em" textAnchor="end" className="fill-fg-2 text-caption tabular-nums">
-                  {formatCompact(f * yMax)}
+            {[0, 0.5, 1].map((fraction) => (
+              <g key={fraction}>
+                <line
+                  x1={PAD.left}
+                  x2={width - PAD.right}
+                  y1={y(fraction * yMax)}
+                  y2={y(fraction * yMax)}
+                  className="stroke-line"
+                  strokeDasharray={fraction === 0 ? undefined : "2 4"}
+                />
+                <text x={PAD.left - 8} y={y(fraction * yMax)} dy="0.32em" textAnchor="end" className="fill-fg-2 text-caption tabular-nums">
+                  {f.compact(fraction * yMax)}
                 </text>
               </g>
             ))}
 
             {/* 轮次分界 */}
-            {turnStarts.map((t, k) => {
-              const tx = x(t.index);
+            {turnStarts.map((start, k) => {
+              const tx = x(start.index);
               const nextX = turnStarts[k + 1] ? x(turnStarts[k + 1]!.index) : width - PAD.right;
-              const isLabelFit = nextX - tx > 40;
+              const isLabelFit = nextX - tx > 48;
               return (
-                <g key={t.turn}>
+                <g key={start.turn}>
                   <line x1={tx} x2={tx} y1={PAD.top - 8} y2={PAD.top + plotH} className="stroke-line" strokeDasharray="2 3" />
                   {isLabelFit && (
                     <text x={tx + 4} y={PAD.top - 12} className="fill-fg-2 text-caption">
-                      第 {t.turn} 轮
+                      {t.chart.turn(start.turn)}
                     </text>
                   )}
                   {isLabelFit && (
                     <text x={tx} y={HEIGHT - 6} textAnchor={k === 0 ? "start" : "middle"} className="fill-fg-2 text-caption tabular-nums">
-                      {formatClock(t.at)}
+                      {f.clock(start.at)}
                     </text>
                   )}
                 </g>
               );
             })}
             <text x={width - PAD.right} y={HEIGHT - 6} textAnchor="end" className="fill-fg-2 text-caption tabular-nums">
-              {formatClock(points[n - 1]!.createdAt)}
+              {f.clock(points[n - 1]!.createdAt)}
             </text>
 
             {mode === "context" ? (
@@ -231,15 +244,17 @@ export function GrowthChart({ points, turns, contextLimit, selectedId, onSelect 
             style={{ left: isTooltipOnLeft ? activeX - 12 : activeX + 12 }}
           >
             <div className="flex items-center justify-between text-caption text-fg-2">
-              <span>第 {active.turn} 轮</span>
-              <span className="tabular-nums">{formatClockSeconds(active.createdAt)}</span>
+              <span>{t.chart.turn(active.turn)}</span>
+              <span className="tabular-nums">{f.clockSeconds(active.createdAt)}</span>
             </div>
             <p className="mt-1 truncate font-mono text-caption text-fg-2">{active.id}</p>
             <dl className="mt-2 space-y-1 text-caption">
-              <TooltipRow label="上下文" value={formatInt(active.contextTotal ?? 0)} />
-              <TooltipRow label="本条增长" value={formatSigned(active.contextDelta ?? 0)} />
-              <TooltipRow label="输出 / 推理" value={`${formatInt(active.tokens?.output ?? 0)} / ${formatInt(active.tokens?.reasoning ?? 0)}`} />
-              {active.tools.length > 0 && <TooltipRow label="工具" value={active.tools.map((t) => TOOL_LABEL[t]).join("、")} />}
+              <TooltipRow label={t.chart.context} value={f.int(active.contextTotal ?? 0)} />
+              <TooltipRow label={t.chart.delta} value={f.signed(active.contextDelta ?? 0)} />
+              <TooltipRow label={t.chart.outputReasoning} value={`${f.int(active.tokens?.output ?? 0)} / ${f.int(active.tokens?.reasoning ?? 0)}`} />
+              {active.tools.length > 0 && (
+                <TooltipRow label={t.chart.tools} value={active.tools.map((tool) => t.tools[tool]).join(t.listSeparator)} />
+              )}
             </dl>
           </div>
         )}

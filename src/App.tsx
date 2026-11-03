@@ -3,6 +3,7 @@ import { ContextPanel } from "./components/ContextPanel";
 import { ConversationPane } from "./components/ConversationPane";
 import { cx } from "./components/ui";
 import { messages, session as baseSession, stats, turns } from "./data/mock";
+import { useI18n } from "./i18n/I18nProvider";
 
 type Theme = "dark" | "light";
 const DESKTOP_QUERY = "(min-width: 1024px)";
@@ -12,6 +13,7 @@ function readTheme(): Theme {
 }
 
 export default function App() {
+  const { t } = useI18n();
   const [theme, setTheme] = useState<Theme>(readTheme);
   const [isPanelOpen, setIsPanelOpen] = useState(() => window.matchMedia(DESKTOP_QUERY).matches);
   const [isRunning, setIsRunning] = useState(baseSession.isRunning);
@@ -22,7 +24,7 @@ export default function App() {
     try {
       localStorage.setItem("theme", theme);
     } catch (error) {
-      console.warn("主题偏好无法保存", error);
+      console.warn("Theme preference could not be saved", error);
     }
   }, [theme]);
 
@@ -52,7 +54,7 @@ export default function App() {
           isPanelOpen={isPanelOpen}
           onTogglePanel={() => setIsPanelOpen((v) => !v)}
           theme={theme}
-          onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+          onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
         />
       </main>
 
@@ -60,12 +62,12 @@ export default function App() {
         <>
           <button
             type="button"
-            aria-label="关闭上下文面板"
+            aria-label={t.layout.closePanel}
             className="fixed inset-0 z-30 cursor-default bg-bg/60 lg:hidden"
             onClick={() => setIsPanelOpen(false)}
           />
           <aside
-            aria-label="上下文"
+            aria-label={t.layout.contextRegion}
             className="fixed inset-y-0 right-0 z-40 w-full border-l border-line shadow-md sm:w-[min(640px,92vw)] lg:static lg:z-auto lg:w-auto lg:min-w-0 lg:flex-1 lg:border-l-0 lg:shadow-none"
           >
             <ContextPanel session={session} messages={messages} turns={turns} stats={stats} onClose={() => setIsPanelOpen(false)} />

@@ -1,5 +1,9 @@
+import type { Locale } from "../lib/format";
+
 export type Role = "user" | "assistant";
 export type ToolKind = "shell" | "read" | "edit" | "write" | "search" | "grep";
+/** 测试数据中面向用户的文案，按界面语言取值 */
+export type Localized = Record<Locale, string>;
 
 export interface TokenUsage {
   input: number;
@@ -15,7 +19,7 @@ export interface Message {
   createdAt: number;
   /** 所属对话轮次，从 1 开始 */
   turn: number;
-  text?: string;
+  text?: Localized;
   tokens?: TokenUsage;
   /** 该次请求占用的上下文词元总数（输入 + 输出 + 推理 + 缓存读写） */
   contextTotal?: number;
@@ -28,7 +32,7 @@ export interface Message {
 
 export interface Session {
   id: string;
-  title: string;
+  title: Localized;
   workspace: string;
   provider: string;
   model: string;
@@ -45,18 +49,9 @@ export interface Turn {
   tokenDelta: number;
 }
 
-export const TOOL_LABEL: Record<ToolKind, string> = {
-  shell: "Shell",
-  read: "读取",
-  edit: "编辑",
-  write: "写入",
-  search: "网页搜索",
-  grep: "搜索代码",
-};
-
 export const session: Session = {
   id: "ses_demo7f3a91c2",
-  title: "示例会话：桌面端界面问题排查",
+  title: { en: "Sample session: desktop UI issue triage", zh: "示例会话：桌面端界面问题排查" },
   workspace: "workspace",
   provider: "Provider-A",
   model: "Model-X 4.1 Flash",
@@ -70,12 +65,12 @@ const START_CONTEXT = 13_840;
 /** 最后一次请求的真实构成，其余消息按此反推生成 */
 const LAST_USAGE: TokenUsage = { input: 384, output: 214, reasoning: 79, cacheRead: 287_872, cacheWrite: 0 };
 const REPLIES_PER_TURN = [38, 52, 41, 47, 40];
-const USER_PROMPTS = [
-  "桌面端标签栏在窄屏下会溢出，帮我定位原因",
-  "按你的方案修改，并补一个最小复现",
-  "把复现步骤整理成 Issue 草稿",
-  "截图需要上传到公开仓库，帮我写个上传脚本",
-  "更新 Issue 正文，附上截图链接",
+const USER_PROMPTS: Localized[] = [
+  { en: "The desktop tab bar overflows on narrow windows — find the cause", zh: "桌面端标签栏在窄屏下会溢出，帮我定位原因" },
+  { en: "Apply your fix and add a minimal repro", zh: "按你的方案修改，并补一个最小复现" },
+  { en: "Turn the repro steps into an issue draft", zh: "把复现步骤整理成 Issue 草稿" },
+  { en: "Screenshots need a public repo — write an upload script", zh: "截图需要上传到公开仓库，帮我写个上传脚本" },
+  { en: "Update the issue body with the screenshot links", zh: "更新 Issue 正文，附上截图链接" },
 ];
 const TOOL_POOL: ToolKind[] = ["shell", "shell", "shell", "read", "read", "grep", "edit", "write", "search"];
 const ID_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
